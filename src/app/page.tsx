@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+type Medication_logs = {
+  user_id: string;
+  target_date: string;
+  time_slot: string;
+};
+
 export default function Home() {
   //[記憶の準備]
   //現在の値の箱と、スイッチを作る
@@ -25,20 +31,42 @@ export default function Home() {
   },[]);
 
   const handleDrink = async () => {
-    const { error } = await supabase
-    .from('medication_logs')
-    .insert([
-      {
-        user_id: '123e4567-e89b-12d3-a456-426614174000', 
-          target_date: '2026-07-31', 
-          time_slot: 'noon'
-      }
-    ]);
+    const now = new Date();
+
+    //yyyy-mm-dd
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0'); //月は０から始まるから+1をして合わせる。
+    const dd = String(now.getDate()).padStart(2, '0');
+    const todayDate =`${yyyy}-${mm}-${dd}`; //操作日時
+
+    //操作された時間を取得して時間帯を判定
+    const hour = now.getHours();
+    let currentSlot = ""; //時間帯を入れる箱
+
+    if (hour >= 5 && hour < 11) {
+      currentSlot = "morning";
+    } else if (hour >= 11 && hour < 15) {
+      currentSlot = "noon";
+    } else if (hour >= 15 && hour < 19){
+      currentSlot = "evening";
+    } else{
+      currentSlot = "nigth";
+    }
+
+    const insertData: Medication_logs ={
+      user_id: '123e4567-e89b-12d3-a456-426614174000',
+          target_date: todayDate,
+          time_slot: currentSlot
+    }
+
+    const {error} = await supabase
+      .from('medication_logs')
+      .insert([insertData]);
 
     if (error) {
       console.error("保存エラー:", error);
     } else {
-       setStatus(status + 1);
+      setStatus(status + 1);
     }
   };
   //[見た目]
