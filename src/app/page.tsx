@@ -9,6 +9,31 @@ type Medication_logs = {
   time_slot: string;
 };
 
+const getCurrentTimeinfo = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0'); //月は０から始まるから+1をして合わせる。
+    const dd = String(now.getDate()).padStart(2, '0');
+    const todayDate =`${yyyy}-${mm}-${dd}`; //操作日時
+
+    //操作された時間を取得して時間帯を判定
+    const hour = now.getHours();
+    let currentSlot = ""; //時間帯を入れる箱
+
+    if (hour >= 5 && hour < 11) {
+      currentSlot = "morning";
+    } else if (hour >= 11 && hour < 15) {
+      currentSlot = "noon";
+    } else if (hour >= 15 && hour < 19){
+      currentSlot = "evening";
+    } else{
+      currentSlot = "night";
+    }
+
+    //計算結果をセットにして返す
+    return { todayDate, currentSlot };
+};
+
 export default function Home() {
   //[記憶の準備]
   //現在の値の箱と、スイッチを作る
@@ -30,31 +55,42 @@ export default function Home() {
      return () => clearInterval(timerId); //return()クリーンアップ関数
   },[]);
 
+  useEffect(() => {
+    const checkStatus = async () => {
+      //todayとnowを取得
+      const { todayDate, currentSlot} =getCurrentTimeinfo();
+
+      //supabaseにtodayかつ今の時間帯のデータがあるか確認
+      const { data, error } = await supabase
+        .from('medication_logs')
+        .select('*')
+        .eq('target_date', todayDate) //日時が一致するデータ
+        .eq('time_slot', currentSlot) //時間帯が一致するデータ
+
+      if (error) {
+        console.error("データ取得エラー:", error);
+        return;
+      }
+
+      //データを確認して判定
+      if (data && data.length > 0) {
+        //データがあれば２（飲んでいるならGood Job）
+        setStatus(2);
+      } else {
+        setStatus(1);
+      }
+    };
+
+    checkStatus();
+  },[]);
+
   const handleDrink = async () => {
-    const now = new Date();
-
-    //yyyy-mm-dd
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0'); //月は０から始まるから+1をして合わせる。
-    const dd = String(now.getDate()).padStart(2, '0');
-    const todayDate =`${yyyy}-${mm}-${dd}`; //操作日時
-
-    //操作された時間を取得して時間帯を判定
-    const hour = now.getHours();
-    let currentSlot = ""; //時間帯を入れる箱
-
-    if (hour >= 5 && hour < 11) {
-      currentSlot = "morning";
-    } else if (hour >= 11 && hour < 15) {
-      currentSlot = "noon";
-    } else if (hour >= 15 && hour < 19){
-      currentSlot = "evening";
-    } else{
-      currentSlot = "nigth";
-    }
-
+    
+    const { todayDate, currentSlot } = getCurrentTimeinfo();
+      
     const insertData: Medication_logs ={
-      user_id: '123e4567-e89b-12d3-a456-426614174000',
+     
+           user_id: '123e4567-e89b-12d3-a456-426614174000',
           target_date: todayDate,
           time_slot: currentSlot
     }
