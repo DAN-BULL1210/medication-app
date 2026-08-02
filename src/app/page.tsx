@@ -26,7 +26,8 @@ const getCurrentTimeinfo = () => {
       currentSlot = "noon";
     } else if (hour >= 15 && hour < 19){
       currentSlot = "evening";
-    } else{
+ 
+    } else {
       currentSlot = "night";
     }
 
@@ -39,12 +40,22 @@ export default function Home() {
   //現在の値の箱と、スイッチを作る
   const [ status, setStatus] = useState(1);
   const [current, setCurrent] = useState("");
+
+  const [isAlert, setIsAlert] = useState(false); //飲み忘れ防止のアラート
   
   useEffect(() => {
     const updateTime =() => {
       const now = new Date();
       setCurrent(now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }));
-     };
+      
+      const hour = now.getHours();
+      if (hour === 10 || hour === 14 || hour === 18 || hour === 23) {
+        setIsAlert(true);
+      } else {
+        setIsAlert(false);
+      }
+
+    };
 
      updateTime();//1回だけ実行される これを書かないと1秒間時間が表示されない
 
@@ -105,23 +116,33 @@ export default function Home() {
       setStatus(status + 1);
     }
   };
-  //[見た目]
+  //[修正] status と isAlert の状態によって見た目を変える
   return (
-    <main className="p-20 text-center">
-      <h1 className="text-4xl font-bold mb-8">
-         {status === 1 ? "お薬飲んだ？" : "Good Job"}
-      </h1>
-      <div className="text-6xl font-mono mb-10 text-gray-700 font-bold tracking-widest">
-        {current || "--:--"}
-      </div>
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-xl p-10 max-w-sm w-full text-center border border-white">
+        <h1 className={`text-4xl font-bold mb-8 ${status === 1 && isAlert ? "text-red-500" : ""} `}>
+          {status === 2 
+            ? "Good Job"
+            : isAlert
+              ? "飲み忘れていませんか？"
+              : "お薬飲んだ？"}
+        </h1>
+        <div className="text-6xl font-mono mb-10 text-gray-800 font-bold tracking-widest">
+          {current || "--:--"}
+        </div>
 
-      <button 
-        onClick={handleDrink}
-        disabled = {status === 2}
-        className="bg-blue-500 text-white font-bold py-4 px-8 rounded-xl"
+        <button 
+          onClick={handleDrink}
+          disabled={status === 2}
+          className={`w-full font-bold py-4 px-8 rounded-full shadow-lg transition-all duration-200 transform active:scale-95 ${
+            status === 2 
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
+              : "bg-blue-500 hover:bg-blue-600 text-white hover:shadow-xl"
+          }`}
         >
-          {status === 1 ? "飲んだ" : "完了"}
+          {status === 1 ? "飲んだ！" : "記録完了"}
         </button>
+      </div>
     </main>
   )
 }
