@@ -10,6 +10,7 @@ type Medication_logs = {
 };
 
 type Medication = {
+  id?: number;
   user_id: string;
   name: string;
   time_slot: string
@@ -180,6 +181,26 @@ export default function Home() {
   
   const { currentSlot } = getCurrentTimeinfo();
   const hasCurrentMeds = medList.some((med) => med.time_slot === currentSlot);
+
+  //削除機能
+  const handleDeleteMedication = async (id?: number) => {
+    if (!id) return;
+    
+    if(!window.confirm("本当にこのお薬を削除しますか？")) {
+      return; //キャンセル時
+    }
+    const { error } = await supabase
+    .from('medications')
+    .delete()
+    .eq('id', id); //渡されたIDと一致するデータを消す
+
+    if (error) {
+      console.error("削除エラー:", error);
+      alert("削除に失敗しました。");
+    } else {
+      fetchMedications();
+    }
+  };
   
   //[修正] status と isAlert の状態によって見た目を変える
   return (
@@ -258,11 +279,21 @@ export default function Home() {
             ) : (
               <ul className="space-y-2">
                 {medList.map((med, index) => (
-                  <li key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <span className="font-bold text-gray-700">{med.name}</span>
-                    <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded-full font-bold">
-                      {med.time_slot}
-                    </span>
+                  <li key={med.id || index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div>
+                      <span className="font-bold text-gray-700">{med.name}</span>
+                      <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded-full font-bold">
+                       {med.time_slot}
+                      </span>
+
+                      <button
+                        onClick={() => handleDeleteMedication(med.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                        title="削除"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
