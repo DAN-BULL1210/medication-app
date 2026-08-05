@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import MedicationList from "@/components/MedicationList";
 import MedicationForm from "@/components/MedicationForm";
 import TimerCard from "@/components/TimerCard";
+import confetti from "canvas-confetti";
 
 type Medication_logs = {
   user_id: string;
@@ -45,6 +46,8 @@ const getCurrentTimeinfo = () => {
 };
 
 export default function Home() {
+
+  const [isMounted, setIsMounted] = useState(false);
   //[記憶の準備]
   //現在の値の箱と、スイッチを作る
   const [ status, setStatus] = useState(1);
@@ -55,6 +58,15 @@ export default function Home() {
   const [medTime, setMedTime] = useState("morning"); //飲む時間帯
 
   const [medList, setMedList] = useState<Medication[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        setIsMounted(true);
+    }, 0);
+    return () => clearTimeout(timer)
+  }, []);
+
 
  //お薬リストを取得する関数
   const fetchMedications = async () => {
@@ -144,6 +156,33 @@ export default function Home() {
     } else {
       setStatus(status + 1);
     }
+
+    //演出
+    confetti({
+      particleCount: 150,
+      spread: 80,
+      origin: {y: 0.6},
+      colors: ['#FFC107', '#FF4081', '#00BCD4', '#4CAF50', '#9C27B0']
+    });
+
+    try { 
+      const timeLabel =
+      currentSlot === "morning" ? "朝" :
+      currentSlot === "noon" ? "昼" :
+      currentSlot === "evening" ? "夜" : "寝る前";
+
+      await fetch('/api/line', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message:` ${timeLabel}のお薬を飲みました！（記録時刻: ${new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}）`
+        }),
+      });
+    } catch (error) {
+      console.error("LINE通知エラー:", error);
+    }
   };
   
   const handleAddMedication = async () => {
@@ -169,6 +208,7 @@ export default function Home() {
       alert("お薬を登録しました。");
       setMedName("");
       fetchMedications();
+      setIsFormOpen(false);
     }
   };
   
@@ -194,6 +234,16 @@ export default function Home() {
       fetchMedications();
     }
   };
+
+  //画面準備ができるまでのローディング画面を表示
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 toindigo-100 flex items-center justify-center p-4">
+        <div className="text-xl font-bold text-gray-500 tracking-widest">Loading...</div>
+      </div>
+
+    )
+  }
   
   //[修正] status と isAlert の状態によって見た目を変える
   return (
@@ -208,18 +258,40 @@ export default function Home() {
       />
 
       {/* 2つ目のカード：登録済みリスト*/}
-      <div className="mt-6 border-t-2 border-gray-100 pt-4">
+      <div className="relative w-full max-w-sm mt-4">
+        <button
+          onClick={() => setIsFormOpen(true)}
+          className="absolute top-6 right-6 z-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-2xl shadow-md transition-transform active:scale-95"
+          >
+            +
+          </button>
+
         <MedicationList medList={medList} onDelete={handleDeleteMedication} />
       </div>
 
       {/* 3つ目のカード：お薬登録フォーム */}
-      <MedicationForm
-        medName={medName}
-        setMedName={setMedName}
-        medTime={medTime}
-        setMedTime={setMedTime}
-        onAdd={handleAddMedication}
-      />
+     {isFormOpen && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4 backdrop-blur-sm transition-opacity duration-300">
+          <div className="relative w-full max-w-sm">
+            {/* ✕（閉じる）ボタン */}
+            <button 
+              onClick={() => setIsFormOpen(false)}
+              className="absolute -top-4 -right-2 bg-white text-gray-500 hover:text-red-500 rounded-full w-10 h-10 flex items-center justify-center shadow-xl font-bold text-xl z-10 transition-transform active:scale-95"
+            >
+              ✕
+            </button>
+            
+            {/* フォーム本体 */}
+            <MedicationForm
+              medName={medName}
+              setMedName={setMedName}
+              medTime={medTime}
+              setMedTime={setMedTime}
+              onAdd={handleAddMedication}
+            />
+          </div>
+        </div>
+      )}
     </main>
   )
 }
