@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import MedicationList from "@/components/MedicationList";
 import MedicationForm from "@/components/MedicationForm";
 import TimerCard from "@/components/TimerCard";
@@ -46,19 +47,19 @@ const getCurrentTimeinfo = () => {
 };
 
 export default function Home() {
-
+  //Auth0からユーザー情報とローディング状態を取得
+  const { user, isLoading } =useUser();
   const [isMounted, setIsMounted] = useState(false);
   //[記憶の準備]
   //現在の値の箱と、スイッチを作る
   const [ status, setStatus] = useState(1);
   const [current, setCurrent] = useState("");
-
   const [isAlert, setIsAlert] = useState(false); //飲み忘れ防止のアラート
   const [medName, setMedName] = useState(""); //薬の名前 
   const [medTime, setMedTime] = useState("morning"); //飲む時間帯
-
   const [medList, setMedList] = useState<Medication[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -70,10 +71,12 @@ export default function Home() {
 
  //お薬リストを取得する関数
   const fetchMedications = async () => {
+    if (!user || !user.sub) return; //ログインしていなければリターン
+
     const { data, error } = await supabase
         .from('medications')
         .select('*')
-        .eq('user_id', '123e4567-e89b-12d3-a456-426614174000');
+        .eq('user_id', user.sub); //追加：ログインしている人のIDを使う
 
       if (error) {
         console.error("お薬リスト取得エラー:", error);
@@ -103,14 +106,18 @@ export default function Home() {
 
   //画面が開いた時に「ステータス確認」と「リスト取得」をまとめて行う
   useEffect(() => {
+    if (!user || !user.sub) return;
+
     const initializeApp = async () => {
       //todayとnowを取得して、飲んだかどうかのステータスを確認
       const { todayDate, currentSlot} = getCurrentTimeinfo();
+
       const { data: logData, error: logError } = await supabase
         .from('medication_logs')
         .select('*')
         .eq('target_date', todayDate)
         .eq('time_slot', currentSlot)
+        .eq('user_id', user.sub); //追加：他人の記録と混ざらないように
 
       if (logError) {
         console.error("データ取得エラー:", logError);
@@ -124,7 +131,7 @@ export default function Home() {
       const { data: medData, error: medError } = await supabase
         .from('medications')
         .select('*')
-        .eq('user_id', '123e4567-e89b-12d3-a456-426614174000');
+        .eq('user_id', user.sub); //ログインしている人のIDを使う
 
       if (medError) {
         console.error("お薬リスト取得エラー:", medError);
@@ -134,15 +141,16 @@ export default function Home() {
     };
 
     initializeApp(); // まとめた処理を実行
-  },[]);
+  },[user]); //sessionが変わるたびに再実行
 
   const handleDrink = async () => {
+    if (!user || !user.sub) return;
     
     const { todayDate, currentSlot } = getCurrentTimeinfo();
       
     const insertData: Medication_logs ={
      
-           user_id: '123e4567-e89b-12d3-a456-426614174000',
+           user_id: user.sub, //ログインしている人のIDを記録
           target_date: todayDate,
           time_slot: currentSlot
     }
@@ -186,13 +194,14 @@ export default function Home() {
   };
   
   const handleAddMedication = async () => {
+    if (!user || !user.sub) return;
     if (!medName) {
       alert("お薬名を入力してください。");
       return;
     }
 
     const newMed: Medication = {
-      user_id: '123e4567-e89b-12d3-a456-426614174000',
+      user_id: user.sub,
       name: medName,
       time_slot: medTime
     };
@@ -235,19 +244,44 @@ export default function Home() {
     }
   };
 
-  //画面準備ができるまでのローディング画面を表示
-  if (!isMounted) {
+  if (!isMounted || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 toindigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="text-xl font-bold text-gray-500 tracking-widest">Loading...</div>
       </div>
+    )
+  }
 
+  if(!user) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center space-y-6">
+          <h1 className="text-2xl font-bold text-gray-800">お薬TAP</h1>
+          <p className="text-gray-500 text-sm">LINEアカウントでログインして、<br/>毎日の服薬を記録しましょう</p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a 
+            href="/api/auth/login" 
+            className="block w-full bg-[#06C755] hover:bg-[#04b049] text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all text-center"
+          >
+            LINEでログイン
+          </a>
+        </div>
+      </main>
     )
   }
   
   //[修正] status と isAlert の状態によって見た目を変える
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4 space-y-8">
+      
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a
+        href="/api/auth/logout"
+        className="absolute top-4 right-4 text-xs bg-gray-200 hover:bg-gray-300 text-gray-600 py-1 px-3 rounded-full transition-colors"
+      >
+        ログアウト
+      </a>
+
       {/* 1つ目のカード：時間表示・確認ボタン */}
       <TimerCard
         status={status}
