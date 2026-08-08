@@ -272,7 +272,7 @@ export default function Home() {
   
   //[修正] status と isAlert の状態によって見た目を変える
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4 space-y-8">
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 space-y-8">
       
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a
@@ -295,7 +295,8 @@ export default function Home() {
       <div className="relative w-full max-w-sm mt-4">
         <button
           onClick={() => setIsFormOpen(true)}
-          className="absolute top-6 right-6 z-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-2xl shadow-md transition-transform active:scale-95"
+          // 2. 「＋」ボタンをLINEグリーン（#00B900）に変更（ホバー時は少し濃い緑）
+          className="absolute top-6 right-6 z-10 bg-[#00B900] hover:bg-[#009000] text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-2xl shadow-md transition-transform active:scale-95"
           >
             +
           </button>
